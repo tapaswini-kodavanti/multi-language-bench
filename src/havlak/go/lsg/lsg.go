@@ -20,7 +20,8 @@ package lsg
 
 import "container/list"
 import "fmt"
-import "./basicblock"
+// import "./basicblock"
+import "../cfg"
 
 //======================================================
 // Scaffold Code

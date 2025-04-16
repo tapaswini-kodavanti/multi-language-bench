@@ -21,7 +21,8 @@
 package main
 
 import "fmt"
-import "./basicblock"
+// import "./basicblock"
+import "./cfg"
 import "./lsg"
 import "./havlakloopfinder"
 

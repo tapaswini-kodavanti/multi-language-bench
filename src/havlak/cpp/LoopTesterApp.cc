@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
 #include <stdio.h>
 #include <list>
 #include <map>
@@ -20,6 +21,8 @@
 #include <algorithm>
 
 #include "mao-loops.h"
+
+using namespace std;
 
 int buildDiamond(MaoCFG *cfg, int start) {
   int bb0 = start;
@@ -73,11 +76,24 @@ int main(int argc, char *argv[]) {
   new BasicBlockEdge(&cfg, 0,  2);
 
   fprintf(stderr, "15000 dummy loops\n");
+
+  auto dummy_start = chrono::high_resolution_clock::now();
+  vector<LoopStructureGraph*> to_delete;
   for (int dummyloops = 0; dummyloops < 15000; ++dummyloops) {
     LoopStructureGraph * lsglocal = new LoopStructureGraph();
     FindHavlakLoops(&cfg, lsglocal);
-    delete(lsglocal);
+    // delete(lsglocal); // don't include this for timing
+
+    to_delete.push_back(lsglocal);
   }
+  auto dummy_end = chrono::high_resolution_clock::now();
+
+  for (auto p : to_delete) {
+    delete(p);
+  }
+
+  chrono::duration<double, milli> dummy_duration = dummy_end - dummy_start;
+  fprintf(stderr, "Dummy loop time: %f milliseconds\n", dummy_duration.count() / 15000);
 
   fprintf(stderr, "Constructing CFG...\n");
   int n = 2;
@@ -104,12 +120,19 @@ int main(int argc, char *argv[]) {
   int num_loops = FindHavlakLoops(&cfg, &lsg);
 
   fprintf(stderr, "Another 50 iterations...\n");
+
+  auto complex_start = chrono::high_resolution_clock::now();
   int sum = 0;
   for (int i = 0; i < 50; i++) {
     LoopStructureGraph lsg;
-    fprintf(stderr, ".");
+    // fprintf(stderr, "."); // don't include this for timing
     sum += FindHavlakLoops(&cfg, &lsg);
   }
+  auto complex_end = chrono::high_resolution_clock::now();
+
+  chrono::duration<double, milli> complex_duration = dummy_end - dummy_start;
+  fprintf(stderr, "Complex loop time: %f milliseconds\n", complex_duration.count() / 50);
+
   fprintf(stderr,
           "\nFound %d loops (including artificial root node)"
           "(%d)\n", num_loops, sum);

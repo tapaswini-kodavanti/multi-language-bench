@@ -12,18 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-OPTS=-O2
+# OPTS=-O2
 
-a.out:  mao-loops.o LoopTesterApp.o
-	gcc $(OPTS) LoopTesterApp.o mao-loops.o -lc -lstdc++
+# a.out:  mao-loops.o LoopTesterApp.o
+# 	gcc $(OPTS) LoopTesterApp.o mao-loops.o -lc -lstdc++
+
+# mao-loops.o: mao-loops.cc
+# 	gcc $(OPTS) -c mao-loops.cc
+
+# LoopTesterApp.o: LoopTesterApp.cc
+# 	gcc $(OPTS) -c LoopTesterApp.cc
+
+# run: 
+# 	./a.out
+
+# clean:
+# 	rm -f *~
+# 	rm -f *.o
+# 	rm -f a.out
+
+
+OPTS=-O2 -std=c++17
+CXX=g++
+
+a.out: mao-loops.o LoopTesterApp.o
+	$(CXX) $(OPTS) LoopTesterApp.o mao-loops.o -lc
 
 mao-loops.o: mao-loops.cc
-	gcc $(OPTS) -c mao-loops.cc
+	$(CXX) $(OPTS) -c mao-loops.cc
 
 LoopTesterApp.o: LoopTesterApp.cc
-	gcc $(OPTS) -c LoopTesterApp.cc
+	$(CXX) $(OPTS) -c LoopTesterApp.cc
 
-run: 
+run:
 	./a.out
 
 clean:
