@@ -20,11 +20,16 @@
 //
 package main
 
-import "fmt"
+import (
+    "fmt"
+	"time"
+    "loopfinder/cfg"
+    "loopfinder/lsg"
+    "loopfinder/havlakloopfinder"
+)
+
+
 // import "./basicblock"
-import "./cfg"
-import "./lsg"
-import "./havlakloopfinder"
 
 //======================================================
 // Testing Code
@@ -79,9 +84,13 @@ func main() {
 	cfg.NewBasicBlockEdge(cfgraph, 0, 2)
 
 	fmt.Printf("15000 dummy loops\n")
+
+	dummyStart := time.Now()
 	for dummyloop := 0; dummyloop < 15000; dummyloop++ {
 		havlakloopfinder.FindHavlakLoops(cfgraph, lsg.NewLSG())
 	}
+	dummyElapsed := time.Since(dummyStart)
+	fmt.Printf("Dummy loop time: %d milliseconds\n", dummyElapsed.Milliseconds()) // need to divide by 15000
 
 	fmt.Printf("Constructing CFG...\n")
 	n := 2
@@ -108,10 +117,14 @@ func main() {
 	havlakloopfinder.FindHavlakLoops(cfgraph, lsgraph)
 
 	fmt.Printf("Another 50 iterations...\n")
+
+	complexStart := time.Now()
 	for i := 0; i < 50; i++ {
-		fmt.Printf(".")
+		// fmt.Printf(".") // don't include in timing
 		havlakloopfinder.FindHavlakLoops(cfgraph, lsg.NewLSG())
 	}
+	complexElapsed := time.Since(complexStart)
+	fmt.Printf("Complex loop time: %d milliseconds\n", complexElapsed.Milliseconds()) // need to divide by 50
 
 	fmt.Printf("\n")
 	fmt.Printf("# of loops: %d (including 1 artificial root node)\n", lsgraph.NumLoops())
