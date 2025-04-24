@@ -89,6 +89,10 @@ func NewCFG() *CFG {
 	return &CFG{bb: make(map[int]*BasicBlock)}
 }
 
+func NewCFGwithNodes(nodes map[int]*BasicBlock) *CFG {
+	return &CFG{bb: nodes}
+}
+
 func (cfg *CFG) BasicBlocks() map[int]*BasicBlock {
 	return cfg.bb
 }

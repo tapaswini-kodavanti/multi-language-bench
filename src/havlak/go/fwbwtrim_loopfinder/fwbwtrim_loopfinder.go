@@ -8,7 +8,7 @@
 //
 package fwbwtrim_loopfinder
 
-// import "container/list"
+import "container/list"
 
 import (
     "loopfinder/cfg"
@@ -45,20 +45,19 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG) {
 	trimBackward(cfgraph)
 
 	pivot := pickPivot(cfgraph)
-	pred := reachable(cfgraph, pivot, false)
-	desc := reachable(cfgraph, pivot, true)
+	pred := reachable(pivot, false)
+	desc := reachable(pivot, true)
 
 	scc := intersect(pred, desc)
 
 	sccSet := make(map[int]bool)
-	for _, b := range scc {
-		sccSet[b.ID] = true
-		// delete(cfg.BB, b.ID)   ;    why do we need to do this?
+	for _, bb := range scc {
+		sccSet[bb.Name()] = true
 	}
 
-	predMinusSCC := filter(pred, sccSet)
-	descMinusSCC := filter(desc, sccSet)
-	rem := filter(filter(filter(cfgraph.BasicBlocks(), pred), desc), []*cfg.BasicBlock{pivot}) // rem is CFG - pred - desc - pivot
+	predMinusSCC := filter(pred, scc)
+	descMinusSCC := filter(desc, scc)
+	rem := filter(filter(cfgraph.BasicBlocks(), pred), desc) // rem is CFG - pred - desc (pivot is included in pred and desc)
 
 
 	FindLoops(makeSubCFG(predMinusSCC), lsgraph)
@@ -83,15 +82,89 @@ func trim(cfg *cfg.CFG, forward bool) {
 	var modified bool
 	for { // loop until there are no more predecessors to remove
 		modified = false
-		for id, bb := range cfg.BasicBlocks() {
+		for _, bb := range cfg.BasicBlocks() {
 			if ((forward && bb.NumPred() == 0) || (!forward && bb.NumSucc() == 0)) {
-				cfg.Remove(id)
+				cfg.Remove(bb.Name())
 			}
 		}
 		if !modified {
 			return
 		}
 	}
+}
+
+func pickPivot(cfg *cfg.CFG) *cfg.BasicBlock { // use a different heuristic here later
+	for _, bb := range cfg.BasicBlocks() {
+		return bb;
+	}
+	return nil;
+}
+
+func reachable(start *cfg.BasicBlock, desc bool) map[int]*cfg.BasicBlock { // returns all nodes that are reachable from the start (pred or desc)
+	visited := make(map[int]bool)
+	var nodes []*cfg.BasicBlock
+	var stack []*cfg.BasicBlock
+	stack = append(stack, start) 
+
+	// basic BFS to check for reachable nodes
+	for len(stack) > 0 {
+		index := len(stack) - 1
+		node := stack[index]
+		stack = stack[:index]
+
+		if visited[node.Name()] {
+			continue
+		}
+
+		// Process node
+		visited[node.Name()] = true
+		nodes = append(nodes, node)
+		var neighbors *list.List
+		if desc {
+			neighbors = node.OutEdges()
+		} else {
+			neighbors = node.InEdges()
+		}
+
+		// manually add nodes from neighbords into stack
+		listNode := neighbors.Front()
+		for listNode != nil {
+			stack = append(stack, listNode.Value.(*cfg.BasicBlock))
+			listNode = listNode.Next()
+
+		}
+	}
+
+	// Make mapping of node
+	result := make(map[int]*cfg.BasicBlock)
+	for _, bb := range nodes {
+		result[bb.Name()] = bb
+	}
+	return result
+}
+
+func intersect(pred map[int]*cfg.BasicBlock, desc map[int]*cfg.BasicBlock) map[int]*cfg.BasicBlock {
+	result := make(map[int]*cfg.BasicBlock)
+	for _, bb := range pred {
+		if _, exists := desc[bb.Name()]; exists {
+			result[bb.Name()] = bb
+		}
+	}
+	return result
+}
+
+func filter(initial map[int]*cfg.BasicBlock, remove map[int]*cfg.BasicBlock) map[int]*cfg.BasicBlock {
+	result := make(map[int]*cfg.BasicBlock)
+	for _, bb := range initial {
+		if _, exists := remove[bb.Name()]; !exists {
+			result[bb.Name()] = bb
+		}
+	}
+	return result
+}
+
+func makeSubCFG(nodes map[int]*cfg.BasicBlock) *cfg.CFG{
+	return cfg.NewCFGwithNodes(nodes)
 }
 
 func FindFWBWLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG) int { // Entry point
