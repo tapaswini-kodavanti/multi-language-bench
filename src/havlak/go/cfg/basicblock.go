@@ -129,6 +129,10 @@ func (cfg *CFG) Src(edge *BasicBlockEdge) *BasicBlock {
 	return edge.Src()
 }
 
+func (cfg *CFG) Remove(id int) {
+	delete(cfg.bb, id)
+}
+
 //-----------------------------------------------------------
 
 type BasicBlockEdge struct {
