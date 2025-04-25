@@ -1,18 +1,15 @@
-
 //======================================================
 // Forward-Backward Trim Parallel Algorithm
 //======================================================
 
-//
 // The parallel loop finding algorithm.
-//
 package fwbwtrim_loopfinder
 
-import "container/list"
-
 import (
-    "loopfinder/cfg"
-    "loopfinder/lsg"
+	"container/list"
+	"fmt"
+	"loopfinder/cfg"
+	"loopfinder/lsg"
 )
 
 // FindLoops
@@ -24,7 +21,7 @@ import (
 // In each recursive iteration, create new CFGs that use the same building blocks as originally created
 // To prune, remove the BasicBlock from the list, don't delete the object
 
-func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG) { 
+func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*lsg.SimpleLoop) { 
 	// if cfgraph has 1 vertex or less, return (no more loops)
 
 	// apply forward trim to considering nodes to further prune out unnecessary ones (need a union find...)
@@ -48,26 +45,55 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG) {
 	pred := reachable(pivot, false)
 	desc := reachable(pivot, true)
 
+	fmt.Printf("Pred length: %d\n", len(pred))
+	fmt.Printf("Desc length: %d\n", len(desc))
+
 	scc := intersect(pred, desc)
 
-	sccSet := make(map[int]bool)
-	for _, bb := range scc {
-		sccSet[bb.Name()] = true
-	}
+	fmt.Printf("scc length: %d\n", len(scc))
+
+	// sccSet := make(map[int]bool)
+	// for _, bb := range scc {
+	// 	sccSet[bb.Name()] = true
+	// }
 
 	predMinusSCC := filter(pred, scc)
 	descMinusSCC := filter(desc, scc)
 	rem := filter(filter(cfgraph.BasicBlocks(), pred), desc) // rem is CFG - pred - desc (pivot is included in pred and desc)
 
 
-	FindLoops(makeSubCFG(predMinusSCC), lsgraph)
-	FindLoops(makeSubCFG(descMinusSCC), lsgraph)
-	FindLoops(makeSubCFG(rem), lsgraph)
+	FindLoops(makeSubCFG(predMinusSCC), lsgraph, loopMap)
+	FindLoops(makeSubCFG(descMinusSCC), lsgraph, loopMap)
+	FindLoops(makeSubCFG(rem), lsgraph, loopMap)
 
+	// do find loops for SCC?
 
 	// loop through all identified SCCs
 	// determine if reducible
 	// do same thing as havlak paper to add to final lsgraph
+
+	// Create loop descriptor for the SCC if it's meaningful
+	if len(scc) > 0 {
+		loop := lsgraph.NewLoop()
+		loop.SetHeader(pivot)
+
+		isReducible := isLoopReducible(scc, pivot)
+		loop.SetIsReducible(isReducible)
+
+		// ensure nesting of parent loops
+		for _, bb := range scc {
+			loop.AddNode(bb)
+
+			if _, inLoop := loopMap[bb]; inLoop && loopMap[bb] != loop {
+				loop.AddChildLoop(loopMap[bb])
+			}
+
+			loopMap[bb] = loop
+		}
+
+		lsgraph.AddLoop(loop)
+	}
+
 }
 
 func trimForward(cfg *cfg.CFG) {
@@ -150,6 +176,7 @@ func intersect(pred map[int]*cfg.BasicBlock, desc map[int]*cfg.BasicBlock) map[i
 			result[bb.Name()] = bb
 		}
 	}
+
 	return result
 }
 
@@ -160,6 +187,9 @@ func filter(initial map[int]*cfg.BasicBlock, remove map[int]*cfg.BasicBlock) map
 			result[bb.Name()] = bb
 		}
 	}
+
+	fmt.Printf("PRINTING FILTER LENGTH: ")
+	fmt.Print(len(result), "\n")
 	return result
 }
 
@@ -167,7 +197,25 @@ func makeSubCFG(nodes map[int]*cfg.BasicBlock) *cfg.CFG{
 	return cfg.NewCFGwithNodes(nodes)
 }
 
+func isLoopReducible(scc map[int]*cfg.BasicBlock, pivot *cfg.BasicBlock) bool {
+	for _, bb := range scc {
+		// for each node's predecesor, check if it is within the SCC
+		// if it is not and the node in question is not the pivot, then it implies that there are
+		// multiple entry points, thus making the graph irreducible
+		for pred := bb.InEdges().Front(); pred != nil; pred = pred.Next() {
+			predBB := pred.Value.(*cfg.BasicBlock)
+			if _, inSCC := scc[predBB.Name()]; !inSCC {
+				if bb.Name() != pivot.Name() {
+					return false
+				}
+			}
+		}
+	}
+	return true
+} 
+
 func FindFWBWLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG) int { // Entry point
-	FindLoops(cfgraph, lsgraph)
+	loopMap := make(map[*cfg.BasicBlock]*lsg.SimpleLoop)
+	FindLoops(cfgraph, lsgraph, loopMap)
 	return lsgraph.NumLoops()
 }
