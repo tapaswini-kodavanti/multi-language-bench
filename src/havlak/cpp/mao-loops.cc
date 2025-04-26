@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "mao-loops.h"
+#include "tarjan-loops.h"
 
 //======================================================
 // Main Algorithm

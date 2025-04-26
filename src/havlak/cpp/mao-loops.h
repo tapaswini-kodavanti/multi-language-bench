@@ -323,4 +323,7 @@ BasicBlockEdge::BasicBlockEdge(MaoCFG     *cfg,
 // External entry point.
 int FindHavlakLoops(MaoCFG *CFG, LoopStructureGraph *LSG);
 
+// new external entry point
+int FindTarjanLoops(MaoCFG *CFG, LoopStructureGraph *LSG);
+
 #endif  // MAO_LOOPS_H_

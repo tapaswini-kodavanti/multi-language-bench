@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "mao-loops.h"
+#include "tarjan-loops.h"
 
 using namespace std;
 
@@ -375,7 +376,6 @@ void testLargeScaleTwo() {
             loops, duration.count());
 }
 
-
 int largeScaleTestThree(MaoCFG *cfg, int from) {
     int maxNodeId = from;
 
@@ -502,7 +502,8 @@ int main(int argc, char *argv[]) {
     vector<LoopStructureGraph *> to_delete;
     for (int dummyloops = 0; dummyloops < 15000; ++dummyloops) {
         LoopStructureGraph *lsglocal = new LoopStructureGraph();
-        FindHavlakLoops(&cfg, lsglocal);
+        FindTarjanLoops(&cfg, lsglocal);
+        // FindHavlakLoops(&cfg, lsglocal);
         // delete(lsglocal); // don't include this for timing
 
         to_delete.push_back(lsglocal);
@@ -538,7 +539,7 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "Performing Loop Recognition\n1 Iteration\n");
-    int num_loops = FindHavlakLoops(&cfg, &lsg);
+    int num_loops = FindTarjanLoops(&cfg, &lsg); // FindHavlakLoops(&cfg, &lsg);
 
     fprintf(stderr, "Another 50 iterations...\n");
 
@@ -547,7 +548,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < 50; i++) {
         LoopStructureGraph lsg;
         // fprintf(stderr, "."); // don't include this for timing
-        sum += FindHavlakLoops(&cfg, &lsg);
+        sum += FindTarjanLoops(&cfg, &lsg); // FindHavlakLoops(&cfg, &lsg);
     }
     auto complex_end = chrono::high_resolution_clock::now();
 
@@ -560,9 +561,9 @@ int main(int argc, char *argv[]) {
             num_loops, sum);
     lsg.Dump();
 
-    testReducibleGraphs();
-    testLargeScaleOne();
-    testLargeScaleTwo();
-    testLargeScaleThree();
+    // testReducibleGraphs();
+    // testLargeScaleOne();
+    // testLargeScaleTwo();
+    // testLargeScaleThree();
     return 0;
 }
