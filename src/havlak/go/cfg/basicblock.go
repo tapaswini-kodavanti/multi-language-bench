@@ -89,6 +89,10 @@ func NewCFG() *CFG {
 	return &CFG{bb: make(map[int]*BasicBlock)}
 }
 
+func NewCFGwithNodes(nodes map[int]*BasicBlock) *CFG {
+	return &CFG{bb: nodes}
+}
+
 func (cfg *CFG) BasicBlocks() map[int]*BasicBlock {
 	return cfg.bb
 }
@@ -127,6 +131,10 @@ func (cfg *CFG) Dst(edge *BasicBlockEdge) *BasicBlock {
 
 func (cfg *CFG) Src(edge *BasicBlockEdge) *BasicBlock {
 	return edge.Src()
+}
+
+func (cfg *CFG) Remove(id int) {
+	delete(cfg.bb, id)
 }
 
 //-----------------------------------------------------------

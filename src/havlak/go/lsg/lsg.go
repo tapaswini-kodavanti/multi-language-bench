@@ -20,8 +20,9 @@ package lsg
 
 import "container/list"
 import "fmt"
-// import "./basicblock"
-import "../cfg"
+import (
+    "loopfinder/cfg"
+)
 
 //======================================================
 // Scaffold Code

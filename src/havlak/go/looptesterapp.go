@@ -17,14 +17,18 @@
 // This program constructs a fairly large control flow
 // graph and performs loop recognition. This is the Go
 // version.
-//
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"loopfinder/cfg"
+	"loopfinder/fwbwtrim_loopfinder"
+	"loopfinder/havlakloopfinder"
+	"loopfinder/lsg"
+	"time"
+)
+
 // import "./basicblock"
-import "./cfg"
-import "./lsg"
-import "./havlakloopfinder"
 
 //======================================================
 // Testing Code
@@ -68,7 +72,7 @@ func buildBaseLoop(cfgraph *cfg.CFG, from int) int {
 func main() {
 	fmt.Printf("Welcome to LoopTesterApp, Go edition\n")
 
-	lsgraph := lsg.NewLSG()
+	// lsgraph := lsg.NewLSG()
 	cfgraph := cfg.NewCFG()
 
 	fmt.Printf("Constructing Simple CFG...\n")
@@ -79,41 +83,72 @@ func main() {
 	cfg.NewBasicBlockEdge(cfgraph, 0, 2)
 
 	fmt.Printf("15000 dummy loops\n")
+
+	dummyStart := time.Now()
 	for dummyloop := 0; dummyloop < 15000; dummyloop++ {
 		havlakloopfinder.FindHavlakLoops(cfgraph, lsg.NewLSG())
 	}
+	dummyElapsed := time.Since(dummyStart)
+	fmt.Printf("Dummy loop time: %d milliseconds\n", dummyElapsed.Milliseconds()) // need to divide by 15000
 
-	fmt.Printf("Constructing CFG...\n")
-	n := 2
+	lsgraphDummy := lsg.NewLSG()
+	havlakloopfinder.FindHavlakLoops(cfgraph, lsgraphDummy)
+	fmt.Printf("# of loops in dummy graph: %d (including 1 artificial root node)\n", lsgraphDummy.NumLoops())
 
-	for parlooptrees := 0; parlooptrees < 10; parlooptrees++ {
-		cfgraph.CreateNode(n + 1)
-		buildConnect(cfgraph, 2, n+1)
-		n = n + 1
+	lsgraphDummy.CalculateNestingLevel()
+	lsgraphDummy.Dump()
 
-		for i := 0; i < 100; i++ {
-			top := n
-			n = buildStraight(cfgraph, n, 1)
-			for j := 0; j < 25; j++ {
-				n = buildBaseLoop(cfgraph, n)
-			}
-			bottom := buildStraight(cfgraph, n, 1)
-			buildConnect(cfgraph, n, top)
-			n = bottom
-		}
-		buildConnect(cfgraph, n, 1)
-	}
+	lsgraph_fwbw := lsg.NewLSG()
+	fwbwtrim_loopfinder.FindFWBWLoops(cfgraph, lsgraph_fwbw)
+	fmt.Printf("# of loops in dummy graph: %d (including 1 artificial root node)\n", lsgraph_fwbw.NumLoops())
 
-	fmt.Printf("Performing Loop Recognition\n1 Iteration\n")
-	havlakloopfinder.FindHavlakLoops(cfgraph, lsgraph)
+	lsgraph_fwbw.CalculateNestingLevel()
+	lsgraph_fwbw.Dump()
 
-	fmt.Printf("Another 50 iterations...\n")
-	for i := 0; i < 50; i++ {
-		fmt.Printf(".")
-		havlakloopfinder.FindHavlakLoops(cfgraph, lsg.NewLSG())
-	}
 
-	fmt.Printf("\n")
-	fmt.Printf("# of loops: %d (including 1 artificial root node)\n", lsgraph.NumLoops())
-	lsgraph.CalculateNestingLevel()
+	// fmt.Printf("Constructing CFG...\n")
+	// n := 2
+
+	// for parlooptrees := 0; parlooptrees < 10; parlooptrees++ {
+	// 	cfgraph.CreateNode(n + 1)
+	// 	buildConnect(cfgraph, 2, n+1)
+	// 	n = n + 1
+
+	// 	for i := 0; i < 100; i++ {
+	// 		top := n
+	// 		n = buildStraight(cfgraph, n, 1)
+	// 		for j := 0; j < 25; j++ {
+	// 			n = buildBaseLoop(cfgraph, n)
+	// 		}
+	// 		bottom := buildStraight(cfgraph, n, 1)
+	// 		buildConnect(cfgraph, n, top)
+	// 		n = bottom
+	// 	}
+	// 	buildConnect(cfgraph, n, 1)
+	// }
+
+	// fmt.Printf("Performing Loop Recognition\n1 Iteration\n")
+	// havlakloopfinder.FindHavlakLoops(cfgraph, lsgraph)
+
+	// fmt.Printf("Another 50 iterations... (paused for now)\n")
+
+	// // complexStart := time.Now()
+	// // for i := 0; i < 50; i++ {
+	// // 	// fmt.Printf(".") // don't include in timing
+	// // 	havlakloopfinder.FindHavlakLoops(cfgraph, lsg.NewLSG())
+	// // }
+	// // complexElapsed := time.Since(complexStart)
+	// // fmt.Printf("Complex loop time: %d milliseconds\n", complexElapsed.Milliseconds()) // need to divide by 50
+
+	// fmt.Printf("\n")
+	// fmt.Printf("# of loops: %d (including 1 artificial root node)\n", lsgraph.NumLoops())
+	// lsgraph.CalculateNestingLevel()
+
+	// fmt.Printf("\n")
+	// fmt.Printf("Now testing FWBW trim algorithm...\n")
+	// lsgraph2 := lsg.NewLSG()
+	// fwbwtrim_loopfinder.FindFWBWLoops(cfgraph, lsgraph2)
+	// fmt.Printf("# of loops: %d (including 1 artificial root node)\n", lsgraph2.NumLoops())
+
+
 }

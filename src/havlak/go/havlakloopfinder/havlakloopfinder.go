@@ -22,10 +22,11 @@
 package havlakloopfinder
 
 import "container/list"
-import "../cfg"
-import "../lsg"
-// import "./basicblock"
-// import "./lsg"
+
+import (
+    "loopfinder/cfg"
+    "loopfinder/lsg"
+)
 
 // Basic Blocks and Loops are being classified as regular, irreducible,
 // and so on. This enum contains a symbolic name for all these classifications
