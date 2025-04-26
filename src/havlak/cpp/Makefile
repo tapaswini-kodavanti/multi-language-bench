@@ -35,11 +35,14 @@
 OPTS=-O2 -std=c++17
 CXX=g++
 
-a.out: mao-loops.o LoopTesterApp.o
-	$(CXX) $(OPTS) LoopTesterApp.o mao-loops.o -lc
+a.out: mao-loops.o LoopTesterApp.o tarjan-loops.o
+	$(CXX) $(OPTS) LoopTesterApp.o mao-loops.o tarjan-loops.o -lc
 
 mao-loops.o: mao-loops.cc
 	$(CXX) $(OPTS) -c mao-loops.cc
+
+tarjan-loops.o: tarjan-loops.cc
+	$(CXX) $(OPTS) -c tarjan-loops.cc
 
 LoopTesterApp.o: LoopTesterApp.cc
 	$(CXX) $(OPTS) -c LoopTesterApp.cc
