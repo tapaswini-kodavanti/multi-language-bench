@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <vector>
 
+#include "fwbw-loops.h"
 #include "mao-loops.h"
 #include "tarjan-loops.h"
 
@@ -502,7 +503,8 @@ int main(int argc, char *argv[]) {
     vector<LoopStructureGraph *> to_delete;
     for (int dummyloops = 0; dummyloops < 15000; ++dummyloops) {
         LoopStructureGraph *lsglocal = new LoopStructureGraph();
-        FindTarjanLoops(&cfg, lsglocal);
+        FindFWBWLoops(&cfg, lsglocal);
+        // FindTarjanLoops(&cfg, lsglocal);
         // FindHavlakLoops(&cfg, lsglocal);
         // delete(lsglocal); // don't include this for timing
 
@@ -539,7 +541,9 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "Performing Loop Recognition\n1 Iteration\n");
-    int num_loops = FindTarjanLoops(&cfg, &lsg); // FindHavlakLoops(&cfg, &lsg);
+    int num_loops = FindFWBWLoops(&cfg, &lsg);
+    // int num_loops = FindTarjanLoops(&cfg, &lsg);
+    // int num_loops = FindHavlakLoops(&cfg, &lsg);
 
     fprintf(stderr, "Another 50 iterations...\n");
 
@@ -548,7 +552,9 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < 50; i++) {
         LoopStructureGraph lsg;
         // fprintf(stderr, "."); // don't include this for timing
-        sum += FindTarjanLoops(&cfg, &lsg); // FindHavlakLoops(&cfg, &lsg);
+        sum += FindFWBWLoops(&cfg, &lsg);
+        // sum += FindTarjanLoops(&cfg, &lsg);
+        // sum += FindHavlakLoops(&cfg, &lsg);
     }
     auto complex_end = chrono::high_resolution_clock::now();
 
