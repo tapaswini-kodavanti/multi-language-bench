@@ -12,13 +12,13 @@
 // struct to hold recursive task arguments
 struct FindLoopsTask {
     std::set<int> nodeIds;
-    class ParallelFWBWLoopFinder *finder;
+    class FWBWLoopFinder *finder;
 };
 
 // parallel Forward-Backward Trim algorithm for finding loops
-class ParallelFWBWLoopFinder {
+class FWBWLoopFinder {
 public:
-    ParallelFWBWLoopFinder(MaoCFG *cfg, LoopStructureGraph *lsg)
+    FWBWLoopFinder(MaoCFG *cfg, LoopStructureGraph *lsg)
         : CFG_(cfg), lsg_(lsg), taskCount_(0) {
         pthread_mutex_init(&lsgMutex_, nullptr);
         pthread_mutex_init(&nodeLoopMapMutex_, nullptr);
@@ -26,7 +26,7 @@ public:
         pthread_cond_init(&taskCompleteCond_, nullptr);
     }
 
-    ~ParallelFWBWLoopFinder() {
+    ~FWBWLoopFinder() {
         pthread_mutex_destroy(&lsgMutex_);
         pthread_mutex_destroy(&nodeLoopMapMutex_);
         pthread_mutex_destroy(&taskCountMutex_);
@@ -62,7 +62,7 @@ public:
     // thread function to process a partition
     static void *threadFunction(void *arg) {
         FindLoopsTask *task = static_cast<FindLoopsTask *>(arg);
-        ParallelFWBWLoopFinder *finder = task->finder;
+        FWBWLoopFinder *finder = task->finder;
 
         finder->FindLoopsRecursive(task->nodeIds);
 
@@ -362,7 +362,7 @@ public:
 
 // external entry point for FWBW Trim algorithm
 int FindFWBWLoops(MaoCFG *CFG, LoopStructureGraph *LSG) {
-    ParallelFWBWLoopFinder finder(CFG, LSG);
+    FWBWLoopFinder finder(CFG, LSG);
     finder.FindLoops();
     return LSG->GetNumLoops();
 }
