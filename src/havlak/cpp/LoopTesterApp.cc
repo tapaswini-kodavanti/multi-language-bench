@@ -157,332 +157,104 @@ int buildLoopWithBranches(MaoCFG *cfg, int from) {
     return buildStraight(cfg, merge, 1);
 }
 
-// just to see if the new build functions work...
-void testReducibleGraphs() {
-    fprintf(stderr, "\n=== Testing Various Reducible Graph Patterns ===\n\n");
+// SCCs with different structures
+int createVariedSCC(MaoCFG *cfg, int from, int type) {
+    switch (type % 5) {
+    case 0:
+        return buildBaseLoop(cfg, from);
+    case 1:
+        return buildNestedLoop(cfg, from);
+    case 2:
+        return buildMultipleExitLoop(cfg, from);
+    case 3:
+        return buildSequentialLoops(cfg, from);
+    case 4:
+        return buildLoopWithBranches(cfg, from);
+    }
+    return buildBaseLoop(cfg, from); // Default case
+}
 
-    // test case 1: simple loop
-    {
-        fprintf(stderr, "Test 1: Simple Loop\n");
-        MaoCFG cfg;
-        LoopStructureGraph lsg;
+// build a CFG with exactly numSCCs strongly connected components
+int buildScalableSCCs(MaoCFG *cfg, int numSCCs) {
+    cfg->CreateNode(0);
+    int current = 0;
 
-        cfg.CreateNode(0);
-        buildBaseLoop(&cfg, 0);
+    for (int i = 0; i < numSCCs; i++) {
+        // create a varied SCC based on index (for variety)
+        current = createVariedSCC(cfg, current, i);
 
-        int loops = FindHavlakLoops(&cfg, &lsg);
-        fprintf(stderr, "Found %d loops\n\n", loops);
-        // lsg.Dump();
+        // ensure SCCs are independent by adding a gap node
+        if (i < numSCCs - 1) {
+            int next = current + 1;
+            cfg->CreateNode(next);
+            buildConnect(cfg, current, next);
+            current = next;
+        }
     }
 
-    // test case 2: nested loops
-    {
-        fprintf(stderr, "Test 2: Nested Loops\n");
+    return current;
+}
+
+// run tests with SCC counts 32-8192
+void runScalingSCCTests() {
+    fprintf(stderr, "\n=== Testing Scalable SCC Counts ===\n");
+
+    // Test several different SCC counts
+    int testCounts[] = {32, 512, 2048/*, 8192, 16384*/};
+
+    for (int count : testCounts) {
+        fprintf(stderr, "\nTesting with %d SCCs...\n", count);
+
         MaoCFG cfg;
+        buildScalableSCCs(&cfg, count);
+
+        // Test with FWBW algorithm
         LoopStructureGraph lsg;
+        auto start = chrono::high_resolution_clock::now();
+        int loops = FindFWBWLoops(&cfg, &lsg);
+        auto end = chrono::high_resolution_clock::now();
 
-        cfg.CreateNode(0);
-        buildNestedLoop(&cfg, 0);
+        chrono::duration<double, milli> duration = end - start;
 
-        int loops = FindHavlakLoops(&cfg, &lsg);
-        fprintf(stderr, "Found %d loops\n\n", loops);
-        // lsg.Dump();
-    }
+        fprintf(stderr, "FWBW found %d loops (expected %d) in %.2f ms\n",
+                loops, count + 1, duration.count()); // +1 for artificial root
 
-    // test case 3: multiple exit loop
-    {
-        fprintf(stderr, "Test 3: Multiple Exit Loop\n");
-        MaoCFG cfg;
-        LoopStructureGraph lsg;
+        LoopStructureGraph lsg2;
+        start = chrono::high_resolution_clock::now();
+        loops = FindTarjanLoops(&cfg, &lsg2);
+        end = chrono::high_resolution_clock::now();
 
-        cfg.CreateNode(0);
-        buildMultipleExitLoop(&cfg, 0);
-
-        int loops = FindHavlakLoops(&cfg, &lsg);
-        fprintf(stderr, "Found %d loops\n\n", loops);
-        // lsg.Dump();
-    }
-
-    // test case 4: sequential loops
-    {
-        fprintf(stderr, "Test 4: Sequential Loops\n");
-        MaoCFG cfg;
-        LoopStructureGraph lsg;
-
-        cfg.CreateNode(0);
-        buildSequentialLoops(&cfg, 0);
-
-        int loops = FindHavlakLoops(&cfg, &lsg);
-        fprintf(stderr, "Found %d loops\n\n", loops);
-        // lsg.Dump();
-    }
-
-    // test case 5: loop with branches
-    {
-        fprintf(stderr, "Test 5: Loop with Branches\n");
-        MaoCFG cfg;
-        LoopStructureGraph lsg;
-
-        cfg.CreateNode(0);
-        buildLoopWithBranches(&cfg, 0);
-
-        int loops = FindHavlakLoops(&cfg, &lsg);
-        fprintf(stderr, "Found %d loops\n\n", loops);
-        // lsg.Dump();
-    }
-
-    // test case 6: complex loop with multiple exits
-    {
-        fprintf(stderr, "Test 6: Complex Loop with Multiple Exits\n");
-        MaoCFG cfg;
-        LoopStructureGraph lsg;
-
-        cfg.CreateNode(0);
-        buildBaseLoop(&cfg, 0);
-        buildBaseLoop(&cfg, 1);
-
-        int loops = FindHavlakLoops(&cfg, &lsg);
-        fprintf(stderr, "Found %d loops\n\n", loops);
-        // lsg.Dump();
+        fprintf(stderr, "Tarjan found %d loops in %.2f ms\n",
+                loops, chrono::duration<double, milli>(end - start).count());
     }
 }
 
-// create large scale test with above build helpers
-void testLargeScaleOne() {
+// compare all algorithms with a given number of SCCs
+void compareAllAlgorithms(int count) {
+    fprintf(stderr, "\n=== Comparing All Algorithms with %d SCCs ===\n", count);
+
     MaoCFG cfg;
-    LoopStructureGraph lsg;
+    buildScalableSCCs(&cfg, count);
 
-    cfg.CreateNode(0);
-    int n = 0;
-
-    for (int i = 0; i < 100; i++) {
-        int loopHead = n;
-        n = buildStraight(&cfg, n, 1);
-
-        for (int j = 0; j < 10; j++) {
-            if (j % 3 == 0)
-                n = buildNestedLoop(&cfg, n);
-            else if (j % 3 == 1)
-                n = buildMultipleExitLoop(&cfg, n);
-            else
-                n = buildLoopWithBranches(&cfg, n);
-        }
-
-        buildConnect(&cfg, n, loopHead);
-    }
-
-    fprintf(stderr, "Testing large scale reducible graph one...\n");
+    // test Tarjan
+    LoopStructureGraph lsg1;
     auto start = chrono::high_resolution_clock::now();
-    int loops = FindHavlakLoops(&cfg, &lsg);
+    int loops = FindTarjanLoops(&cfg, &lsg1);
     auto end = chrono::high_resolution_clock::now();
+    fprintf(stderr, "Tarjan: %d loops in %.2f ms\n",
+            loops, chrono::duration<double, milli>(end - start).count());
 
-    chrono::duration<double, milli> duration = end - start;
-    fprintf(stderr, "Found %d loops in %f milliseconds\n",
-            loops, duration.count());
+    // test FWBW
+    LoopStructureGraph lsg2;
+    start = chrono::high_resolution_clock::now();
+    loops = FindFWBWLoops(&cfg, &lsg2);
+    end = chrono::high_resolution_clock::now();
+    fprintf(stderr, "FWBW: %d loops in %.2f ms\n",
+            loops, chrono::duration<double, milli>(end - start).count());
 }
 
-int largeScaleTestTwo(MaoCFG *cfg, int from) {
-    cfg->CreateNode(from);
-    int current = from;
-
-    // "islands" of loops
-    const int NUM_ISLANDS = 50;
-    std::vector<int> islandEntries;
-    std::vector<int> islandExits;
-
-    for (int i = 0; i < NUM_ISLANDS; i++) {
-        // entry point of each
-        islandEntries.push_back(current);
-
-        int nestingDepth = 10;
-        int nestStart = current;
-
-        int entryDiamond = buildDiamond(cfg, current);
-        current = entryDiamond;
-
-        for (int depth = 0; depth < nestingDepth; depth++) {
-            if (depth % 3 == 0) {
-                // every third level is a complex loop with branches
-                current = buildLoopWithBranches(cfg, current);
-            } else if (depth % 3 == 1) {
-                // every third+1 level is a nested loop
-                current = buildNestedLoop(cfg, current);
-            } else {
-                // every third+2 level is a multiple-exit loop
-                current = buildMultipleExitLoop(cfg, current);
-            }
-
-            current = buildStraight(cfg, current, 3);
-
-            if (depth % 2 == 0) {
-                current = buildDiamond(cfg, current);
-            }
-        }
-
-        int loopCluster = current;
-        for (int j = 0; j < 20; j++) {
-            if (j % 4 == 0) {
-                current = buildBaseLoop(cfg, current);
-            } else if (j % 4 == 1) {
-                current = buildNestedLoop(cfg, current);
-            } else if (j % 4 == 2) {
-                current = buildLoopWithBranches(cfg, current);
-            } else {
-                current = buildMultipleExitLoop(cfg, current);
-            }
-        }
-
-        buildConnect(cfg, current, loopCluster + 10);
-
-        current = buildStraight(cfg, current, 1);
-        islandExits.push_back(current);
-
-        current = current + 1;
-    }
-
-    // connections between islands
-    for (int i = 0; i < NUM_ISLANDS; i++) {
-        if (i < NUM_ISLANDS - 1) {
-            buildConnect(cfg, islandExits[i], islandEntries[i + 1]);
-        }
-
-        // cross-connections to create more complex control flow
-        // designed to maintain reducibility: connect earlier exits to later
-        // entries, never the reverse
-        for (int j = i + 2; j < std::min(i + 10, NUM_ISLANDS); j++) {
-            buildConnect(cfg, islandExits[i], islandEntries[j]);
-        }
-    }
-
-    buildConnect(cfg, islandExits[NUM_ISLANDS - 1], islandEntries[0]);
-
-    int finalExit = buildStraight(cfg, islandExits[NUM_ISLANDS - 1], 1);
-
-    return finalExit;
-}
-
-void testLargeScaleTwo() {
-    fprintf(stderr, "Testing large scale reducible graph two...\n");
-    MaoCFG cfg;
-    LoopStructureGraph lsg;
-
-    largeScaleTestTwo(&cfg, 0);
-
-    auto start = chrono::high_resolution_clock::now();
-    int loops = FindHavlakLoops(&cfg, &lsg);
-    auto end = chrono::high_resolution_clock::now();
-
-    chrono::duration<double, milli> duration = end - start;
-    fprintf(stderr, "Found %d loops in %f milliseconds\n",
-            loops, duration.count());
-}
-
-int largeScaleTestThree(MaoCFG *cfg, int from) {
-    int maxNodeId = from;
-
-    const int MAIN_PATH_LENGTH = 100;  // length of the main path
-    const int SIDE_PATHS_PER_NODE = 2; // number of side paths from each main node
-    const int SIDE_PATH_LOOPS = 3;     // number of loops in each side path
-    const int NESTING_LEVELS = 15;     // levels of nesting in special deep sections
-
-    // main path with nodes
-    std::vector<int> mainPath(MAIN_PATH_LENGTH);
-    mainPath[0] = from;
-
-    for (int i = 1; i < MAIN_PATH_LENGTH; i++) {
-        mainPath[i] = ++maxNodeId;
-        cfg->CreateNode(mainPath[i]);
-        buildConnect(cfg, mainPath[i - 1], mainPath[i]);
-    }
-
-    for (int i = 0; i < MAIN_PATH_LENGTH; i++) {
-        for (int j = 0; j < SIDE_PATHS_PER_NODE; j++) {
-            int sideStart = ++maxNodeId;
-            cfg->CreateNode(sideStart);
-            buildConnect(cfg, mainPath[i], sideStart);
-
-            int current = sideStart;
-
-            for (int k = 0; k < SIDE_PATH_LOOPS; k++) {
-                switch ((i + j + k) % 4) {
-                case 0:
-                    current = buildBaseLoop(cfg, current);
-                    break;
-                case 1:
-                    current = buildNestedLoop(cfg, current);
-                    break;
-                case 2:
-                    current = buildMultipleExitLoop(cfg, current);
-                    break;
-                case 3:
-                    current = buildLoopWithBranches(cfg, current);
-                    break;
-                }
-                maxNodeId = std::max(maxNodeId, current);
-            }
-
-            buildConnect(cfg, current, mainPath[std::min(i + 5, MAIN_PATH_LENGTH - 1)]);
-        }
-
-        if (i % 10 == 0 && i > 0) {
-            int deepStart = ++maxNodeId;
-            cfg->CreateNode(deepStart);
-            buildConnect(cfg, mainPath[i], deepStart);
-
-            int current = deepStart;
-            std::vector<int> nestingHeaders;
-            nestingHeaders.push_back(current);
-
-            for (int level = 0; level < NESTING_LEVELS; level++) {
-                int levelHeader = ++maxNodeId;
-                cfg->CreateNode(levelHeader);
-                buildConnect(cfg, current, levelHeader);
-                current = levelHeader;
-                nestingHeaders.push_back(current);
-
-                for (int l = 0; l < 3; l++) {
-                    current = buildBaseLoop(cfg, current);
-                    maxNodeId = std::max(maxNodeId, current);
-                }
-            }
-
-            for (int n = 1; n < nestingHeaders.size(); n++) {
-                buildConnect(cfg, current, nestingHeaders[n]);
-            }
-
-            buildConnect(cfg, current, mainPath[std::min(i + 5, MAIN_PATH_LENGTH - 1)]);
-        }
-    }
-
-    for (int i = 0; i < MAIN_PATH_LENGTH - 10; i++) {
-        if (i % 7 == 0) {
-            buildConnect(cfg, mainPath[i + 9], mainPath[i]);
-        }
-    }
-
-    int finalNode = ++maxNodeId;
-    cfg->CreateNode(finalNode);
-    buildConnect(cfg, mainPath[MAIN_PATH_LENGTH - 1], finalNode);
-
-    return finalNode;
-}
-
-void testLargeScaleThree() {
-    fprintf(stderr, "Testing large scale reducible graph three...\n");
-    MaoCFG cfg;
-    LoopStructureGraph lsg;
-
-    cfg.CreateNode(0);
-    largeScaleTestThree(&cfg, 0);
-
-    auto start = chrono::high_resolution_clock::now();
-    int loops = FindHavlakLoops(&cfg, &lsg);
-    auto end = chrono::high_resolution_clock::now();
-
-    chrono::duration<double, milli> duration = end - start;
-    fprintf(stderr, "Found %d loops in %f milliseconds\n",
-            loops, duration.count());
-}
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////MAIN FUNCTION BELOW//////////////////////////////////
 
 int main(int argc, char *argv[]) {
     fprintf(stderr, "Welcome to LoopTesterApp, C++ edition\n");
@@ -497,29 +269,41 @@ int main(int argc, char *argv[]) {
     cfg.CreateNode(1); // bottom
     new BasicBlockEdge(&cfg, 0, 2);
 
-    fprintf(stderr, "15000 dummy loops\n");
+    // =========== DUMMY LOOPS TEST FOR BOTH ALGORITHMS ===========
+    fprintf(stderr, "15000 dummy loops for both algorithms\n");
 
-    auto dummy_start = chrono::high_resolution_clock::now();
     vector<LoopStructureGraph *> to_delete;
+    auto fwbw_start = chrono::high_resolution_clock::now();
     for (int dummyloops = 0; dummyloops < 15000; ++dummyloops) {
         LoopStructureGraph *lsglocal = new LoopStructureGraph();
         FindFWBWLoops(&cfg, lsglocal);
-        // FindTarjanLoops(&cfg, lsglocal);
-        // FindHavlakLoops(&cfg, lsglocal);
-        // delete(lsglocal); // don't include this for timing
-
         to_delete.push_back(lsglocal);
     }
-    auto dummy_end = chrono::high_resolution_clock::now();
+    auto fwbw_end = chrono::high_resolution_clock::now();
 
+    auto tarjan_start = chrono::high_resolution_clock::now();
+    for (int dummyloops = 0; dummyloops < 15000; ++dummyloops) {
+        LoopStructureGraph *lsglocal = new LoopStructureGraph();
+        FindTarjanLoops(&cfg, lsglocal);
+        to_delete.push_back(lsglocal);
+    }
+    auto tarjan_end = chrono::high_resolution_clock::now();
+
+    // clean up!
     for (auto p : to_delete) {
         delete (p);
     }
 
-    chrono::duration<double, milli> dummy_duration = dummy_end - dummy_start;
-    fprintf(stderr, "Dummy loop time: %f milliseconds\n", dummy_duration.count() / 15000);
+    // Print timing comparison
+    chrono::duration<double, milli> fwbw_duration = fwbw_end - fwbw_start;
+    chrono::duration<double, milli> tarjan_duration = tarjan_end - tarjan_start;
 
-    fprintf(stderr, "Constructing CFG...\n");
+    fprintf(stderr, "Dummy loop times per iteration:\n");
+    fprintf(stderr, "  FWBW:   %f milliseconds\n", fwbw_duration.count() / 15000);
+    fprintf(stderr, "  Tarjan: %f milliseconds\n", tarjan_duration.count() / 15000);
+
+    // =========== BUILD COMPLEX CFG ===========
+    fprintf(stderr, "Constructing complex CFG...\n");
     int n = 2;
 
     for (int parlooptrees = 0; parlooptrees < 10; parlooptrees++) {
@@ -540,36 +324,74 @@ int main(int argc, char *argv[]) {
         buildConnect(&cfg, n, 1);
     }
 
-    fprintf(stderr, "Performing Loop Recognition\n1 Iteration\n");
-    int num_loops = FindFWBWLoops(&cfg, &lsg);
-    // int num_loops = FindTarjanLoops(&cfg, &lsg);
-    // int num_loops = FindHavlakLoops(&cfg, &lsg);
+    // =========== SINGLE ITERATION TEST FOR BOTH ALGORITHMS ===========
+    fprintf(stderr, "Performing Loop Recognition\n1 Iteration with both algorithms\n");
 
-    fprintf(stderr, "Another 50 iterations...\n");
+    // test each algorithm for a single iteration
+    LoopStructureGraph lsg_fwbw, lsg_tarjan;
 
-    auto complex_start = chrono::high_resolution_clock::now();
-    int sum = 0;
+    auto single_fwbw_start = chrono::high_resolution_clock::now();
+    int num_loops_fwbw = FindFWBWLoops(&cfg, &lsg_fwbw);
+    auto single_fwbw_end = chrono::high_resolution_clock::now();
+
+    auto single_tarjan_start = chrono::high_resolution_clock::now();
+    int num_loops_tarjan = FindTarjanLoops(&cfg, &lsg_tarjan);
+    auto single_tarjan_end = chrono::high_resolution_clock::now();
+
+    fprintf(stderr, "Single iteration times:\n");
+    fprintf(stderr, "  FWBW:   %f milliseconds, found %d loops\n",
+            chrono::duration<double, milli>(single_fwbw_end - single_fwbw_start).count(),
+            num_loops_fwbw);
+    fprintf(stderr, "  Tarjan: %f milliseconds, found %d loops\n",
+            chrono::duration<double, milli>(single_tarjan_end - single_tarjan_start).count(),
+            num_loops_tarjan);
+
+    // =========== 50 ITERATIONS TEST FOR BOTH ALGORITHMS ===========
+    /*
+    fprintf(stderr, "Another 50 iterations with both algorithms...\n");
+
+    int sum_fwbw = 0, sum_tarjan = 0;
+
+    // test FWBW
+    auto complex_fwbw_start = chrono::high_resolution_clock::now();
     for (int i = 0; i < 50; i++) {
         LoopStructureGraph lsg;
-        // fprintf(stderr, "."); // don't include this for timing
-        sum += FindFWBWLoops(&cfg, &lsg);
-        // sum += FindTarjanLoops(&cfg, &lsg);
-        // sum += FindHavlakLoops(&cfg, &lsg);
+        sum_fwbw += FindFWBWLoops(&cfg, &lsg);
     }
-    auto complex_end = chrono::high_resolution_clock::now();
+    auto complex_fwbw_end = chrono::high_resolution_clock::now();
 
-    chrono::duration<double, milli> complex_duration = dummy_end - dummy_start;
-    fprintf(stderr, "Complex loop time: %f milliseconds\n", complex_duration.count() / 50);
+    // test Tarjan
+    auto complex_tarjan_start = chrono::high_resolution_clock::now();
+    for (int i = 0; i < 50; i++) {
+        LoopStructureGraph lsg;
+        sum_tarjan += FindTarjanLoops(&cfg, &lsg);
+    }
+    auto complex_tarjan_end = chrono::high_resolution_clock::now();
 
-    fprintf(stderr,
-            "\nFound %d loops (including artificial root node)"
-            "(%d)\n",
-            num_loops, sum);
-    lsg.Dump();
+    chrono::duration<double, milli> complex_fwbw_duration = complex_fwbw_end - complex_fwbw_start;
+    chrono::duration<double, milli> complex_tarjan_duration = complex_tarjan_end - complex_tarjan_start;
 
-    // testReducibleGraphs();
-    // testLargeScaleOne();
-    // testLargeScaleTwo();
-    // testLargeScaleThree();
+    fprintf(stderr, "Complex loop times (average of 50 iterations):\n");
+    fprintf(stderr, "  FWBW:   %f milliseconds, total loops: %d\n",
+            complex_fwbw_duration.count() / 50, sum_fwbw);
+    fprintf(stderr, "  Tarjan: %f milliseconds, total loops: %d\n",
+            complex_tarjan_duration.count() / 50, sum_tarjan);
+
+    fprintf(stderr, "\nDetailed loop structures:\n");
+    fprintf(stderr, "FWBW:\n");
+    lsg_fwbw.Dump();
+    fprintf(stderr, "Tarjan:\n");
+    lsg_tarjan.Dump();
+    */
+
+    // =========== SCALING TESTS ===========
+    runScalingSCCTests();
+    // =========== COMPARISON TESTS ===========
+    // compareAllAlgorithms(32);
+    // compareAllAlgorithms(512);
+    // compareAllAlgorithms(2048);
+    // compareAllAlgorithms(8192);
+    // compareAllAlgorithms(16384);
+
     return 0;
 }
