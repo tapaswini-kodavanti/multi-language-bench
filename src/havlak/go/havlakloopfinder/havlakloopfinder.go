@@ -163,8 +163,8 @@ func DFS(currentNode *cfg.BasicBlock, nodes []*UnionFindNode, number map[*cfg.Ba
 	number[currentNode] = current
 
 	lastid := current
-	for ll := currentNode.OutEdges().Front(); ll != nil; ll = ll.Next() {
-		if target := ll.Value.(*cfg.BasicBlock); number[target] == unvisited {
+	for _, ll := range currentNode.OutEdges() {
+		if target := ll; number[target] == unvisited {
 			lastid = DFS(target, nodes, number, last, lastid+1)
 		}
 	}
@@ -232,8 +232,8 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG) {
 		}
 
 		if nodeW.NumPred() > 0 {
-			for ll := nodeW.InEdges().Front(); ll != nil; ll = ll.Next() {
-				nodeV := ll.Value.(*cfg.BasicBlock)
+			for _, ll := range nodeW.InEdges() {
+				nodeV := ll
 				v := number[nodeV]
 				if v == unvisited {
 					continue // dead node

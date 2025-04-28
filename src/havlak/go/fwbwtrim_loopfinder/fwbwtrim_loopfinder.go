@@ -6,10 +6,9 @@
 package fwbwtrim_loopfinder
 
 import (
-	"container/list"
-	"fmt"
 	"loopfinder/cfg"
 	"loopfinder/lsg"
+	// "sync"
 )
 
 // FindLoops
@@ -40,33 +39,45 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*
 		return
 	}
 	trimBackward(cfgraph)
+	if cfgraph.NumNodes() == 0 { // all nodes deleted in time
+		return
+	}
 
 	pivot := pickPivot(cfgraph)
 	pred := reachable(pivot, false)
 	desc := reachable(pivot, true)
 
-	fmt.Printf("Pred length: %d\n", len(pred))
-	fmt.Printf("Desc length: %d\n", len(desc))
-
 	scc := intersect(pred, desc)
-
-	fmt.Printf("scc length: %d\n", len(scc))
-
-	// sccSet := make(map[int]bool)
-	// for _, bb := range scc {
-	// 	sccSet[bb.Name()] = true
-	// }
 
 	predMinusSCC := filter(pred, scc)
 	descMinusSCC := filter(desc, scc)
 	rem := filter(filter(cfgraph.BasicBlocks(), pred), desc) // rem is CFG - pred - desc (pivot is included in pred and desc)
 
-
 	FindLoops(makeSubCFG(predMinusSCC), lsgraph, loopMap)
 	FindLoops(makeSubCFG(descMinusSCC), lsgraph, loopMap)
 	FindLoops(makeSubCFG(rem), lsgraph, loopMap)
 
-	// do find loops for SCC?
+	// var wg sync.WaitGroup
+	// wg.Add(3)
+
+	// go func() {
+	// 	defer wg.Done()
+	// 	FindLoops(makeSubCFG(predMinusSCC), lsgraph, loopMap)
+	// }()
+
+	// go func() {
+	// 	defer wg.Done()
+	// 	FindLoops(makeSubCFG(descMinusSCC), lsgraph, loopMap)
+	// }()
+
+	// go func() {
+	// 	defer wg.Done()
+	// 	FindLoops(makeSubCFG(rem), lsgraph, loopMap)
+	// }()
+
+	// wg.Wait()
+
+	// fmt.Printf("wait complete\n")
 
 	// loop through all identified SCCs
 	// determine if reducible
@@ -82,15 +93,15 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*
 
 		// ensure nesting of parent loops
 		for _, bb := range scc {
-			loop.AddNode(bb)
-
 			if _, inLoop := loopMap[bb]; inLoop && loopMap[bb] != loop {
-				loop.AddChildLoop(loopMap[bb])
+				if loopMap[bb] != loop {
+					loop.AddChildLoop(loopMap[bb])
+				}
+			} else {
+				loop.AddNode(bb)
+				loopMap[bb] = loop
 			}
-
-			loopMap[bb] = loop
 		}
-
 		lsgraph.AddLoop(loop)
 	}
 
@@ -111,6 +122,19 @@ func trim(cfg *cfg.CFG, forward bool) {
 		for _, bb := range cfg.BasicBlocks() {
 			if ((forward && bb.NumPred() == 0) || (!forward && bb.NumSucc() == 0)) {
 				cfg.Remove(bb.Name())
+				modified = true
+
+				if forward {
+					// If forward, remove the node from the outEdges of its predecessors
+					for _, pred := range bb.InEdges() {
+						pred.RemoveEdge(bb.Name()) // Remove bb from pred's outEdges
+					}
+				} else {
+					// If backward, remove the node from the inEdges of its successors
+					for _, succ := range bb.OutEdges() {
+						succ.RemoveEdge(bb.Name()) // Remove bb from succ's inEdges
+					}
+				}
 			}
 		}
 		if !modified {
@@ -145,7 +169,7 @@ func reachable(start *cfg.BasicBlock, desc bool) map[int]*cfg.BasicBlock { // re
 		// Process node
 		visited[node.Name()] = true
 		nodes = append(nodes, node)
-		var neighbors *list.List
+		var neighbors map[int]*cfg.BasicBlock
 		if desc {
 			neighbors = node.OutEdges()
 		} else {
@@ -153,11 +177,8 @@ func reachable(start *cfg.BasicBlock, desc bool) map[int]*cfg.BasicBlock { // re
 		}
 
 		// manually add nodes from neighbords into stack
-		listNode := neighbors.Front()
-		for listNode != nil {
-			stack = append(stack, listNode.Value.(*cfg.BasicBlock))
-			listNode = listNode.Next()
-
+		for _, listNode := range neighbors {
+			stack = append(stack, listNode)
 		}
 	}
 
@@ -188,8 +209,6 @@ func filter(initial map[int]*cfg.BasicBlock, remove map[int]*cfg.BasicBlock) map
 		}
 	}
 
-	fmt.Printf("PRINTING FILTER LENGTH: ")
-	fmt.Print(len(result), "\n")
 	return result
 }
 
@@ -202,8 +221,7 @@ func isLoopReducible(scc map[int]*cfg.BasicBlock, pivot *cfg.BasicBlock) bool {
 		// for each node's predecesor, check if it is within the SCC
 		// if it is not and the node in question is not the pivot, then it implies that there are
 		// multiple entry points, thus making the graph irreducible
-		for pred := bb.InEdges().Front(); pred != nil; pred = pred.Next() {
-			predBB := pred.Value.(*cfg.BasicBlock)
+		for _, predBB := range bb.InEdges() {
 			if _, inSCC := scc[predBB.Name()]; !inSCC {
 				if bb.Name() != pivot.Name() {
 					return false
