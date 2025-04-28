@@ -32,8 +32,11 @@
 # 	rm -f a.out
 
 
-OPTS=-O2 -std=c++17
+OPTS=-O2 -std=c++17 -fopenmp
 CXX=g++
+
+# Default target that cleans first then builds
+all: clean a.out
 
 a.out: mao-loops.o LoopTesterApp.o tarjan-loops.o fwbw-loops.o
 	$(CXX) $(OPTS) LoopTesterApp.o mao-loops.o tarjan-loops.o fwbw-loops.o -lc
@@ -57,4 +60,5 @@ clean:
 	rm -f *~
 	rm -f *.o
 	rm -f a.out
+
 
