@@ -159,7 +159,7 @@ func runScalingSCCTests() {
 
     // Test several different SCC counts
 	// testCounts := []int{32, 512, 2048, 8192, 16384}
-	testCounts := []int{32}
+	testCounts := []int{32, 512}
 
     for _, count := range testCounts {
 		fmt.Printf("Testing with %d SCCs...", count)

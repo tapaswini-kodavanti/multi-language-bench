@@ -116,31 +116,49 @@ func trimBackward(cfg *cfg.CFG) {
 }
 
 func trim(cfg *cfg.CFG, forward bool) {
-	var modified bool
-	for { // loop until there are no more predecessors to remove
-		modified = false
-		for _, bb := range cfg.BasicBlocks() {
-			if ((forward && bb.NumPred() == 0) || (!forward && bb.NumSucc() == 0)) {
-				cfg.Remove(bb.Name())
-				modified = true
-
-				if forward {
-					// If forward, remove the node from the outEdges of its predecessors
-					for _, pred := range bb.InEdges() {
-						pred.RemoveEdge(bb.Name()) // Remove bb from pred's outEdges
-					}
-				} else {
-					// If backward, remove the node from the inEdges of its successors
-					for _, succ := range bb.OutEdges() {
-						succ.RemoveEdge(bb.Name()) // Remove bb from succ's inEdges
-					}
-				}
-			}
-		}
-		if !modified {
-			return
-		}
-	}
+    var modified bool
+    for { // loop until there are no more predecessors to remove
+        modified = false
+        for _, bb := range cfg.BasicBlocks() {
+            // if node has any predecessors/successors within the current cfg
+            hasConnInSet := false
+            
+            if forward {
+                // if predecessor is in the current CFG
+                for _, pred := range bb.InEdges() {
+                    if _, exists := cfg.BasicBlocks()[pred.Name()]; exists {
+                        hasConnInSet = true
+                        break
+                    }
+                }
+            } else {
+                // if successor is in the current CFG
+                for _, succ := range bb.OutEdges() {
+                    if _, exists := cfg.BasicBlocks()[succ.Name()]; exists {
+                        hasConnInSet = true
+                        break
+                    }
+                }
+            }
+            
+            if !hasConnInSet {
+                cfg.Remove(bb.Name())
+                modified = true
+                if forward {
+                    for _, pred := range bb.InEdges() {
+                        pred.RemoveEdge(bb.Name())
+                    }
+                } else {
+                    for _, succ := range bb.OutEdges() {
+                        succ.RemoveEdge(bb.Name())
+                    }
+                }
+            }
+        }
+        if !modified {
+            return
+        }
+    }
 }
 
 func pickPivot(cfg *cfg.CFG) *cfg.BasicBlock { // use a different heuristic here later
@@ -149,6 +167,7 @@ func pickPivot(cfg *cfg.CFG) *cfg.BasicBlock { // use a different heuristic here
 	}
 	return nil;
 }
+
 
 func reachable(start *cfg.BasicBlock, desc bool) map[int]*cfg.BasicBlock { // returns all nodes that are reachable from the start (pred or desc)
 	visited := make(map[int]bool)
