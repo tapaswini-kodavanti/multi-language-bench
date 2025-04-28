@@ -272,43 +272,43 @@ public:
 
     void CalculateNestingLevel() {
         // link up all 1st level loops to artificial root node.
-        // fprintf(stderr, "Linking up loops to root node\n");
-        // for (LoopList::iterator liter = loops_.begin();
-        //      liter != loops_.end(); ++liter) {
-        //     SimpleLoop *loop = *liter;
-        //     if (loop->is_root())
-        //         continue;
-        //     if (!loop->parent())
-        //         loop->set_parent(root_);
-        // }
-        // fprintf(stderr, "Loop list size: %zu\n", loops_.size());
-
-        int index = 0;
+        fprintf(stderr, "Linking up loops to root node\n");
         for (LoopList::iterator liter = loops_.begin();
-             liter != loops_.end(); ++liter, ++index) {
-
-            // fprintf(stderr, "Processing loop %d...\n", index);
-
-            if (!*liter) {
-                // fprintf(stderr, "Null loop pointer at index %d!\n", index);
-                continue;
-            }
-
+             liter != loops_.end(); ++liter) {
             SimpleLoop *loop = *liter;
-
-            // fprintf(stderr, "Checking if loop is root...\n");
             if (loop->is_root())
                 continue;
-
-            // fprintf(stderr, "Checking if loop has parent...\n");
-            if (!loop->parent()) {
-                if (!root_) {
-                    // fprintf(stderr, "root_ is null!\n");
-                    abort(); // or return, to avoid deref
-                }
+            if (!loop->parent())
                 loop->set_parent(root_);
-            }
         }
+        fprintf(stderr, "Loop list size: %zu\n", loops_.size());
+
+        // int index = 0;
+        // for (LoopList::iterator liter = loops_.begin();
+        //      liter != loops_.end(); ++liter, ++index) {
+
+        //     // fprintf(stderr, "Processing loop %d...\n", index);
+
+        //     if (!*liter) {
+        //         // fprintf(stderr, "Null loop pointer at index %d!\n", index);
+        //         continue;
+        //     }
+
+        //     SimpleLoop *loop = *liter;
+
+        //     // fprintf(stderr, "Checking if loop is root...\n");
+        //     if (loop->is_root())
+        //         continue;
+
+        //     // fprintf(stderr, "Checking if loop has parent...\n");
+        //     if (!loop->parent()) {
+        //         if (!root_) {
+        //             // fprintf(stderr, "root_ is null!\n");
+        //             abort(); // or return, to avoid deref
+        //         }
+        //         loop->set_parent(root_);
+        //     }
+        // }
 
         // fprintf(stderr, "Calculating nesting levels\n");
         // recursively traverse the tree and assign levels.
