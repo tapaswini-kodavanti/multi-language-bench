@@ -18,6 +18,7 @@ struct FindLoopsTask {
 // parallel Forward-Backward Trim algorithm for finding loops
 class FWBWLoopFinder {
 public:
+    int threadCounter = 0;
     FWBWLoopFinder(MaoCFG *cfg, LoopStructureGraph *lsg)
         : CFG_(cfg), lsg_(lsg), taskCount_(0) {
         pthread_mutex_init(&lsgMutex_, nullptr);
@@ -112,7 +113,7 @@ public:
         std::set<int> rem = Difference(remaining, predDesc);
 
         // thread threshold
-        const int PARALLEL_THRESHOLD = 50;
+        const int PARALLEL_THRESHOLD = 10;
 
         // launch threads for non-empty partitions that exceed the threshold
         if (predMinusSCC.size() > PARALLEL_THRESHOLD) {
@@ -170,6 +171,7 @@ public:
     }
 
     void launchThread(const std::set<int> &nodeIds) {
+        threadCounter++;
         pthread_t thread;
         FindLoopsTask *task = new FindLoopsTask{nodeIds, this};
 
@@ -364,5 +366,6 @@ public:
 int FindFWBWLoops(MaoCFG *CFG, LoopStructureGraph *LSG) {
     FWBWLoopFinder finder(CFG, LSG);
     finder.FindLoops();
+    fprintf(stderr, "Number of threads created: %d\n", finder.threadCounter);
     return LSG->GetNumLoops();
 }

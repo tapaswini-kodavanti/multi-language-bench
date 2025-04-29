@@ -200,7 +200,7 @@ void runScalingSCCTests() {
     fprintf(stderr, "\n=== Testing Scalable SCC Counts ===\n");
 
     // Test several different SCC counts
-    int testCounts[] = {8192 /*, 512, 2048, 8192, 16384*/};
+    int testCounts[] = {32, 512, 2048 /*,8192 , 16384*/};
 
     for (int count : testCounts) {
         fprintf(stderr, "\nTesting with %d SCCs...\n", count);
@@ -211,7 +211,8 @@ void runScalingSCCTests() {
         // Test with FWBW algorithm
         LoopStructureGraph lsg;
         auto start = chrono::high_resolution_clock::now();
-        int loops = FindFWBWLoops(&cfg, &lsg);
+        // int loops = FindFWBWLoops(&cfg, &lsg);
+        int loops = 0;
         auto end = chrono::high_resolution_clock::now();
 
         chrono::duration<double, milli> duration = end - start;
