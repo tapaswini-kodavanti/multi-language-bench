@@ -158,8 +158,8 @@ func runScalingSCCTests() {
     fmt.Println("=== Testing Scalable SCC Counts ===");
 
     // Test several different SCC counts
-	// testCounts := []int{32, 512, 2048, 8192, 16384}
-	testCounts := []int{32}
+	testCounts := []int{32, 512, 2048, 8192, 16384}
+	// testCounts := []int{32}
 
     for _, count := range testCounts {
 		fmt.Printf("Testing with %d SCCs...", count)
@@ -176,7 +176,7 @@ func runScalingSCCTests() {
 
 		fmt.Printf("FWBW found %d loops (expected %d) in %d ms\n", loops, count + 1, duration.Milliseconds())
 		lsg1.CalculateNestingLevel()
-		lsg1.Dump()
+		// lsg1.Dump()
 
 		lsg2 := lsg.NewLSG()
 		start = time.Now()
@@ -184,7 +184,7 @@ func runScalingSCCTests() {
 		duration = time.Since(start)
 
 		fmt.Printf("Tarjan found %d loops in %d ms\n", loops, duration.Milliseconds())
-		lsg2.Dump()
+		// lsg2.Dump()
     }
 }
 

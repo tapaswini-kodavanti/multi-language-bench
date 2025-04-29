@@ -32,7 +32,7 @@
 # 	rm -f a.out
 
 
-OPTS=-O2 -std=c++17 -fopenmp
+OPTS=-O2 -std=c++17
 CXX=g++
 
 # Default target that cleans first then builds

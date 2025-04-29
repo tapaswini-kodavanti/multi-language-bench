@@ -8,7 +8,7 @@ package fwbwtrim_loopfinder
 import (
 	"loopfinder/cfg"
 	"loopfinder/lsg"
-	// "sync"
+	"sync"
 )
 
 // FindLoops
@@ -20,7 +20,7 @@ import (
 // In each recursive iteration, create new CFGs that use the same building blocks as originally created
 // To prune, remove the BasicBlock from the list, don't delete the object
 
-func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*lsg.SimpleLoop) { 
+func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*lsg.SimpleLoop, mu *sync.Mutex) { 
 	// if cfgraph has 1 vertex or less, return (no more loops)
 
 	// apply forward trim to considering nodes to further prune out unnecessary ones (need a union find...)
@@ -53,31 +53,30 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*
 	descMinusSCC := filter(desc, scc)
 	rem := filter(filter(cfgraph.BasicBlocks(), pred), desc) // rem is CFG - pred - desc (pivot is included in pred and desc)
 
-	FindLoops(makeSubCFG(predMinusSCC), lsgraph, loopMap)
-	FindLoops(makeSubCFG(descMinusSCC), lsgraph, loopMap)
-	FindLoops(makeSubCFG(rem), lsgraph, loopMap)
+	FindLoops(makeSubCFG(predMinusSCC), lsgraph, loopMap, mu)
+	FindLoops(makeSubCFG(descMinusSCC), lsgraph, loopMap, mu)
+	FindLoops(makeSubCFG(rem), lsgraph, loopMap, mu)
 
-	// var wg sync.WaitGroup
-	// wg.Add(3)
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-	// go func() {
-	// 	defer wg.Done()
-	// 	FindLoops(makeSubCFG(predMinusSCC), lsgraph, loopMap)
-	// }()
+	go func() {
+		defer wg.Done()
+		FindLoops(makeSubCFG(predMinusSCC), lsgraph, loopMap, mu)
+	}()
 
-	// go func() {
-	// 	defer wg.Done()
-	// 	FindLoops(makeSubCFG(descMinusSCC), lsgraph, loopMap)
-	// }()
+	go func() {
+		defer wg.Done()
+		FindLoops(makeSubCFG(descMinusSCC), lsgraph, loopMap, mu)
+	}()
 
-	// go func() {
-	// 	defer wg.Done()
-	// 	FindLoops(makeSubCFG(rem), lsgraph, loopMap)
-	// }()
+	go func() {
+		defer wg.Done()
+		FindLoops(makeSubCFG(rem), lsgraph, loopMap, mu)
+	}()
 
-	// wg.Wait()
+	wg.Wait()
 
-	// fmt.Printf("wait complete\n")
 
 	// loop through all identified SCCs
 	// determine if reducible
@@ -92,6 +91,7 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*
 		loop.SetIsReducible(isReducible)
 
 		// ensure nesting of parent loops
+		mu.Lock()
 		for _, bb := range scc {
 			if _, inLoop := loopMap[bb]; inLoop && loopMap[bb] != loop {
 				if loopMap[bb] != loop {
@@ -102,6 +102,7 @@ func FindLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG, loopMap map[*cfg.BasicBlock]*
 				loopMap[bb] = loop
 			}
 		}
+		mu.Unlock()
 		lsgraph.AddLoop(loop)
 	}
 
@@ -233,7 +234,8 @@ func isLoopReducible(scc map[int]*cfg.BasicBlock, pivot *cfg.BasicBlock) bool {
 } 
 
 func FindFWBWLoops(cfgraph *cfg.CFG, lsgraph *lsg.LSG) int { // Entry point
+	var mu sync.Mutex
 	loopMap := make(map[*cfg.BasicBlock]*lsg.SimpleLoop)
-	FindLoops(cfgraph, lsgraph, loopMap)
+	FindLoops(cfgraph, lsgraph, loopMap, &mu)
 	return lsgraph.NumLoops()
 }

@@ -200,7 +200,7 @@ void runScalingSCCTests() {
     fprintf(stderr, "\n=== Testing Scalable SCC Counts ===\n");
 
     // Test several different SCC counts
-    int testCounts[] = {32 /*, 512, 2048, 8192, 16384*/};
+    int testCounts[] = {8192 /*, 512, 2048, 8192, 16384*/};
 
     for (int count : testCounts) {
         fprintf(stderr, "\nTesting with %d SCCs...\n", count);
